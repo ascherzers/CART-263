@@ -3,11 +3,18 @@ let revealMode = "pixel"; // Options: "pixel", "fade", "object"
 let fadeAmount = 255;
 let dragging = false;
 let offsetX, offsetY;
+let currentRoom = 0;
 
-let shapes = [
-    { type: "rect", x: 50, y: 50, w: 100, h: 100, alpha: 0, draggable: false },
-    { type: "ellipse", x: 500, y: 300, w: 80, h: 80, alpha: 0, color: [255, 100, 100] },
-    { type: "triangle", x1: 300, y1: 200, x2: 350, y2: 100, x3: 400, y3: 200, alpha: 0, angle: 0 }
+
+let rooms = [
+    [
+        { type: "rect", x: 50, y: 50, w: 100, h: 100, alpha: 0, draggable: false },
+        { type: "ellipse", x: 300, y: 200, w: 80, h: 80, alpha: 0, color: [255, 100, 100] }
+    ],
+    [
+        { type: "triangle", x1: 150, y1: 300, x2: 200, y2: 200, x3: 250, y3: 300, alpha: 0, angle: 0 },
+        { type: "rect", x: 400, y: 100, w: 100, h: 100, alpha: 0, draggable: false }
+    ]
 ];
 
 function setup() {
@@ -21,7 +28,6 @@ function draw() {
         fadeAmount -= 0.5; // Slow fading transition
         background(fadeAmount);
     }
-
     drawPlaceholderVisuals();
 
     if (revealMode === "pixel") {
@@ -34,8 +40,7 @@ function draw() {
 }
 
 function revealPixelMode() {
-    for (let i = 0; i < revealedCircles.length; i++) {
-        let p = revealedCircles[i];
+    for (let p of revealedCircles) {
         fill(255 - fadeAmount);
         ellipse(p.x, p.y, 15, 15);
     }
@@ -52,7 +57,7 @@ function revealObjectMode() {
 }
 
 function mousePressed() {
-    for (let shape of shapes) {
+    for (let shape of rooms[currentRoom]) {
         if (shape.type === "rect" && mouseX > shape.x && mouseX < shape.x + shape.w && mouseY > shape.y && mouseY < shape.y + shape.h) {
             shape.alpha = 5;
             shape.draggable = true;
@@ -87,13 +92,23 @@ function keyPressed() {
         revealMode = "fade";
     } else if (key === '3') {
         revealMode = "object";
+    } else if (key === ' ') {
+        nextRoom();
+    }
+}
+
+function nextRoom() {
+    if (currentRoom < rooms.length - 1) {
+        currentRoom++;
+        fadeAmount = 255;
+        revealedCircles = [];
     }
 }
 
 function drawPlaceholderVisuals() {
-    for (let shape of shapes) {
+    for (let shape of rooms[currentRoom]) {
         if (shape.alpha > 0) {
-            shape.alpha = min(shape.alpha + 5, 150); // Gradual fade-in effect
+            shape.alpha = min(shape.alpha + 5, 150);
             if (shape.type === "rect") {
                 fill(100, 100, 255, shape.alpha);
                 rect(shape.x, shape.y, shape.w, shape.h);
