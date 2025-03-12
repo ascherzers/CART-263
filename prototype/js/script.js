@@ -4,26 +4,56 @@ let fadeAmount = 255;
 let dragging = false;
 let offsetX, offsetY;
 let currentRoom = 0;
+let roomReveal = 0;
+let items = {};
+let inventory = [];
+let messages = "";
+let bg;
 
+function preload() {
+    bg = loadImage('room.jpg');
+}
 
 let rooms = [
     [
         { type: "rect", x: 50, y: 50, w: 100, h: 100, alpha: 0, draggable: false },
         { type: "ellipse", x: 300, y: 200, w: 80, h: 80, alpha: 0, color: [255, 100, 100] }
+         { type: "triangle", x1: 100, y1: 350, x2: 150, y2: 250, x3: 200, y3: 350, alpha: 0, angle: 0 },
+        { type: "ellipse", x: 250, y: 100, w: 60, h: 60, alpha: 0, color: [200, 150, 50] }
     ],
     [
         { type: "triangle", x1: 150, y1: 300, x2: 200, y2: 200, x3: 250, y3: 300, alpha: 0, angle: 0 },
         { type: "rect", x: 400, y: 100, w: 100, h: 100, alpha: 0, draggable: false }
+            { type: "ellipse", x: 350, y: 250, w: 70, h: 70, alpha: 0, color: [50, 200, 150] },
+        { type: "rect", x: 500, y: 150, w: 90, h: 90, alpha: 0, draggable: false }
     ]
 ];
 
 function setup() {
-    createCanvas(600, 400);
-    noStroke();
-    background(255);
+    createCanvas(800, 600);
+    items = {
+        'paper': { x: 200, y: 500, found: false },
+        'key': { x: 400, y: 300, found: false },
+        'book': { x: 600, y: 400, found: false }
+    };
 }
 
 function draw() {
+    background(0);
+    image(bg, 0, 0, width, height);
+
+    for (let item in items) {
+        if (!items[item].found) {
+            fill(255, 0, 0);
+            ellipse(items[item].x, items[item].y, 20, 20);
+        }
+    }
+
+    fill(255);
+    textSize(16);
+    text(messages, 20, height - 40);
+
+
     if (fadeAmount > 0) {
         fadeAmount -= 0.5; // Slow fading transition
         background(fadeAmount);
@@ -38,6 +68,7 @@ function draw() {
         revealObjectMode();
     }
 }
+
 
 function revealPixelMode() {
     for (let p of revealedCircles) {
