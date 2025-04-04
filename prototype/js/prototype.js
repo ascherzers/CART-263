@@ -14,8 +14,8 @@ let draggingShelf = false, draggingLamp = false;
 let shelfStartX, shelfStartY;
 let tutorial = true;
 let playerName = "";
-let fadeAmount = 0; // Variable for controlling the fade effect
-let fadeInProgress = false; // Flag to track if the fade should start
+let fadeAmount = 0;
+let fadeInProgress = false;
 let lampOn = false;
 let riddleActive = false;
 let currentRiddle = "";
@@ -23,6 +23,10 @@ let riddleAnswer = "";
 let inventoryButton;
 let showInventory = false;
 let closeInventoryButton;
+let sledgeImg;
+let nameEntered = false;
+let selectedInventoryItem = null;
+
 
 
 function preload() {
@@ -34,6 +38,7 @@ function preload() {
     shelfImg = loadImage('desk.png');
     lampImg = loadImage('lamp.png');
     pixelFont = loadFont('pixel_font.ttf');
+    sledgeImg = loadImage('sledge.png');
 }
 
 function setup() {
@@ -78,7 +83,7 @@ function setup() {
     inventoryButton.position(1010, 640);
     inventoryButton.style("font-family", "'pixel_font'");
     inventoryButton.style("font-size", "16px");
-    inventoryButton.hide(); // Will show when satchel is found
+    inventoryButton.hide();
     inventoryButton.mousePressed(() => {
         showInventory = true;
         closeInventoryButton.show();
@@ -101,7 +106,8 @@ function setup() {
         'paper': { x: 500, y: 500, found: false, visible: false, clicked: false, img: paper },
         'key': { x: -5, y: 450, found: false, visible: true, img: keyImg },
         'book': { x: 600, y: 400, found: false, visible: false, revealed: false, img: bookImg },
-        'satchel': { x: 200, y: 380, found: false, visible: true, img: satchelImg }
+        'satchel': { x: 200, y: 380, found: false, visible: true, img: satchelImg },
+        'sledge': { x: 400, y: 450, found: false, visible: false, img: sledgeImg }
     };
 
 
@@ -127,32 +133,38 @@ function draw() {
         if (riddleActive) {
             text(currentRiddle, 120, 250);
             text("Your Answer: " + userInput, 120, 400);
-        } else if (!playerName) {
+        } else if (!nameEntered) {
             text("Enter your name: " + userInput, 120, 300);
         } else {
-            text("Welcome, " + playerName + "!", 120, 300);
+            text("Script of Wonders", 120, 300);
+            text(userInput, 120, 350);
+
         }
+
     } else {
         image(bg, 0, 0, width, height);
 
-        // Draw items
         for (let item in items) {
             if (items[item].visible && !items[item].found) {
-                image(items[item].img, items[item].x - 20, items[item].y - 20, 80, 80);
+                if (item === 'sledge') {
+                    image(items[item].img, items[item].x - 40, items[item].y - 40, 160, 160); // Make sledgehammer bigger
+                } else {
+                    image(items[item].img, items[item].x - 20, items[item].y - 20, 80, 80); // Default size for others
+                }
             }
         }
 
         image(shelf.img, shelf.x, shelf.y, 300, 300);
         image(lamp.img, lamp.x, lamp.y, 350, 400);
 
-        // If lamp is on, draw a glow effect
+
         if (lampOn) {
-            fill(255, 255, 100, 150); // Yellowish glow with transparency
+            fill(255, 255, 100, 150);
             ellipse(lamp.x + 175, lamp.y + 100, 150, 100);
 
-            // Highlight paper if it is not found
+
             if (!items['paper'].found) {
-                stroke('white'); // Dim yellow outline
+                stroke('white');
                 strokeWeight(1);
                 noFill();
                 rect(items['paper'].x - 10, items['paper'].y - 10, 60, 60);
@@ -168,7 +180,17 @@ function draw() {
             textFont(pixelFont);
             text("Inventory:", 570, 130);
             for (let i = 0; i < inventory.length; i++) {
-                text("- " + inventory[i], 570, 160 + i * 30);
+                let itemName = inventory[i];
+                let y = 160 + i * 30;
+
+                // Highlight selected item
+                if (selectedInventoryItem === itemName) {
+                    fill(200, 200, 255);
+                    rect(560, y - 20, 200, 25);
+                    fill(0);
+                }
+
+                text("- " + itemName, 570, y);
             }
         }
 
@@ -176,9 +198,7 @@ function draw() {
         textSize(16);
         textFont(pixelFont);
         text(messages, 20, height - 40);
-        // if (playerName) {
-        //     text("Welcome, " + playerName + "!", 20, 20);
-        // }
+
 
         if (fadeInProgress) {
             fadeAmount += 0.6;
@@ -200,23 +220,31 @@ function keyPressed() {
         } else if (keyCode === BACKSPACE) {
             userInput = userInput.slice(0, -1);
         } else if (keyCode === ENTER) {
-            if (riddleActive) {
+            if (!nameEntered) {
+                playerName = userInput;
+                nameEntered = true;
+                userInput = "";
+                messages = "Welcome, " + playerName + "!";
+                typeMode = false;
+                exitTypeModeButton.hide();
+                typeButton.show();
+            } if (riddleActive) {
                 if (userInput.toLowerCase() === riddleAnswer) {
                     items['book'].visible = true;
                     messages = "The book has appeared!";
-                } else {
-                    messages = "That's not quite right. Try again!";
                 }
                 userInput = "";
                 riddleActive = false;
                 typeMode = false;
                 exitTypeModeButton.hide();
-            } else if (!playerName) {
-                playerName = userInput;
+            } else {
+                if (userInput.toLowerCase() === "ham") {
+                    items['sledge'].visible = true;
+                    messages = "A sledgehammer has appeared!";
+                }
+                userInput = "";
                 typeMode = false;
-                tutorial = false;
-                messages = "Welcome, " + playerName + "!";
-                typeButton.show();
+                exitTypeModeButton.hide();
             }
         } else {
             userInput += shiftPressed ? key.toUpperCase() : key.toLowerCase();
@@ -226,20 +254,38 @@ function keyPressed() {
 
 function mousePressed() {
     if (!typeMode) {
+        if (showInventory) {
+            for (let i = 0; i < inventory.length; i++) {
+                let y = 160 + i * 30;
+                if (mouseX > 560 && mouseX < 760 && mouseY > y - 20 && mouseY < y + 5) {
+                    selectedInventoryItem = inventory[i];
+                    messages = selectedInventoryItem + " selected!";
+                    return;
+                }
+            }
+        }
         for (let item in items) {
-            let d = dist(mouseX, mouseY, items[item].x, items[item].y);
-            if (d < 40 && !items[item].found) {
+            let ix = items[item].x;
+            let iy = items[item].y;
+            let iw = (item === 'sledge') ? 160 : 80;
+            let ih = (item === 'sledge') ? 160 : 80;
+            let offset = (item === 'sledge') ? 40 : 20;
+
+            if (
+                mouseX > ix - offset && mouseX < ix - offset + iw &&
+                mouseY > iy - offset && mouseY < iy - offset + ih &&
+                !items[item].found
+            ) {
                 if (item === 'paper' && !items[item].visible) {
                     items[item].visible = true;
                     messages = "You found a paper! Click it to read.";
                 } else if (item === 'paper' && items[item].visible) {
                     if (!riddleActive) {
-                        // Display a riddle instead of directly giving the clue
                         riddleActive = true;
                         typeMode = true;
                         userInput = "";
                         currentRiddle = "I speak without a mouth \nAnd hear without ears.\nI have no body,\nBut I come alive with wind.\nWhat am I?";
-                        riddleAnswer = "echo"; // Correct answer
+                        riddleAnswer = "echo";
                         messages = "A riddle appears! Type your answer.";
                     }
                 } else if (item === 'book' && items[item].visible) {
@@ -255,19 +301,32 @@ function mousePressed() {
                     items[item].found = true;
                     inventory.push(item);
                     messages = "You picked up the satchel!";
-                    inventoryButton.show(); // Show the inventory button
+                    inventoryButton.show();
+                } else if (item === 'sledge' && items[item].visible) {
+                    if (inventory.includes('satchel')) {
+                        items[item].found = true;
+                        inventory.push(item);
+                        messages = "You picked up the sledgehammer!";
+                    } else {
+                        messages = "So heavy";
+                    }
                 }
             }
         }
 
-        // Check if the lamp was clicked
         if (mouseX > lamp.x && mouseX < lamp.x + 200 && mouseY > lamp.y && mouseY < lamp.y + 200) {
-            lampOn = !lampOn;  // Toggle lamp state
+            lampOn = !lampOn;
             messages = lampOn ? "The lamp is now on!" : "The lamp is now off!";
         }
 
         if (mouseX > shelf.x && mouseX < shelf.x + 250 && mouseY > shelf.y && mouseY < shelf.y + 250) {
-            draggingShelf = true;
+            if (selectedInventoryItem === "sledge") {
+                messages = "You smashed the desk!";
+                // Do something cool like reveal a new item or change the desk image
+                selectedInventoryItem = null;
+            } else {
+                draggingShelf = true;
+            }
         }
         if (mouseX > lamp.x && mouseX < lamp.x + 200 && mouseY > lamp.y && mouseY < lamp.y + 200) {
             draggingLamp = true;
