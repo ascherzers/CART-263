@@ -26,7 +26,7 @@ let closeInventoryButton;
 let sledgeImg;
 let nameEntered = false;
 let selectedInventoryItem = null;
-
+let smashedShelfImg;
 
 
 function preload() {
@@ -39,6 +39,7 @@ function preload() {
     lampImg = loadImage('lamp.png');
     pixelFont = loadFont('pixel_font.ttf');
     sledgeImg = loadImage('sledge.png');
+    smashedShelfImg = loadImage('smashedshelf.png');
 }
 
 function setup() {
@@ -105,9 +106,10 @@ function setup() {
     items = {
         'paper': { x: 500, y: 500, found: false, visible: false, clicked: false, img: paper },
         'key': { x: -5, y: 450, found: false, visible: true, img: keyImg },
+        'Key+-': { x: 70, y: 370, found: false, visible: false, img: keyImg }, // Real key
         'book': { x: 600, y: 400, found: false, visible: false, revealed: false, img: bookImg },
         'satchel': { x: 200, y: 380, found: false, visible: true, img: satchelImg },
-        'sledge': { x: 400, y: 450, found: false, visible: false, img: sledgeImg }
+        'Sledge Hammer': { x: 400, y: 450, found: false, visible: false, img: sledgeImg }
     };
 
 
@@ -145,8 +147,9 @@ function draw() {
         image(bg, 0, 0, width, height);
 
         for (let item in items) {
+            if (item === 'Key+-') continue;
             if (items[item].visible && !items[item].found) {
-                if (item === 'sledge') {
+                if (item === 'Sledge Hammer') {
                     image(items[item].img, items[item].x - 40, items[item].y - 40, 160, 160); // Make sledgehammer bigger
                 } else {
                     image(items[item].img, items[item].x - 20, items[item].y - 20, 80, 80); // Default size for others
@@ -154,8 +157,17 @@ function draw() {
             }
         }
 
-        image(shelf.img, shelf.x, shelf.y, 300, 300);
+        if (shelf.img === smashedShelfImg) {
+            image(shelf.img, shelf.x - 20, shelf.y - 5, 350, 315);
+        } else {
+            image(shelf.img, shelf.x, shelf.y, 300, 300);
+        }
         image(lamp.img, lamp.x, lamp.y, 350, 400);
+
+
+        if (items['Key+-'].visible && !items['Key+-'].found) {
+            image(items['Key+-'].img, items['Key+-'].x, items['Key+-'].y - 10, 40, 40);
+        }
 
 
         if (lampOn) {
@@ -239,7 +251,7 @@ function keyPressed() {
                 exitTypeModeButton.hide();
             } else {
                 if (userInput.toLowerCase() === "ham") {
-                    items['sledge'].visible = true;
+                    items['Sledge Hammer'].visible = true;
                     messages = "A sledgehammer has appeared!";
                 }
                 userInput = "";
@@ -267,9 +279,9 @@ function mousePressed() {
         for (let item in items) {
             let ix = items[item].x;
             let iy = items[item].y;
-            let iw = (item === 'sledge') ? 160 : 80;
-            let ih = (item === 'sledge') ? 160 : 80;
-            let offset = (item === 'sledge') ? 40 : 20;
+            let iw = (item === 'Sledge Hammer') ? 160 : 80;
+            let ih = (item === 'Sledge Hammer') ? 160 : 80;
+            let offset = (item === 'Sledge Hammer') ? 40 : 20;
 
             if (
                 mouseX > ix - offset && mouseX < ix - offset + iw &&
@@ -291,18 +303,19 @@ function mousePressed() {
                 } else if (item === 'book' && items[item].visible) {
                     items[item].found = true;
                     inventory.push(item);
-                    messages = "You found a clue, check behind the desk.";
+                    messages = "Dear Madam Reller..."; //Palindrome add function to be able to read book's contents in inventory to desipher
                 } else if (item === 'key' && items[item].visible) {
                     items[item].found = true;
                     inventory.push(item);
-                    messages = "You found the key to the next room!";
-                    fadeInProgress = true;
+                    messages = "KEY"; //Typing key spawns keyhole which leads player to death room
+                    inventoryButton.show();
+                    //fadeInProgress = true;
                 } else if (item === 'satchel' && items[item].visible) {
                     items[item].found = true;
                     inventory.push(item);
                     messages = "You picked up the satchel!";
                     inventoryButton.show();
-                } else if (item === 'sledge' && items[item].visible) {
+                } else if (item === 'Sledge Hammer' && items[item].visible) {
                     if (inventory.includes('satchel')) {
                         items[item].found = true;
                         inventory.push(item);
@@ -310,6 +323,11 @@ function mousePressed() {
                     } else {
                         messages = "So heavy";
                     }
+                } else if (item === 'Key+-' && items[item].visible) {
+                    items[item].found = true;
+                    inventory.push(item);
+                    messages = "Key+-";
+                    inventoryButton.show();
                 }
             }
         }
@@ -320,38 +338,41 @@ function mousePressed() {
         }
 
         if (mouseX > shelf.x && mouseX < shelf.x + 250 && mouseY > shelf.y && mouseY < shelf.y + 250) {
-            if (selectedInventoryItem === "sledge") {
-                messages = "You smashed the desk!";
-                // Do something cool like reveal a new item or change the desk image
-                selectedInventoryItem = null;
-            } else {
-                draggingShelf = true;
+            if (selectedInventoryItem === "Sledge Hammer") {
+                if (selectedInventoryItem === "Sledge Hammer") {
+                    messages = "You smashed the desk!";
+                    shelf.img = smashedShelfImg; // Change the image
+                    selectedInventoryItem = null;
+                    items['Key+-'].visible = true; // MAKE SECOND KEY VISIBLE
+                } else {
+                    draggingShelf = true;
+                }
+            }
+            if (mouseX > lamp.x && mouseX < lamp.x + 200 && mouseY > lamp.y && mouseY < lamp.y + 200) {
+                draggingLamp = true;
             }
         }
-        if (mouseX > lamp.x && mouseX < lamp.x + 200 && mouseY > lamp.y && mouseY < lamp.y + 200) {
-            draggingLamp = true;
+    }
+
+    function mouseDragged() {
+        if (draggingShelf) {
+            let newX = constrain(mouseX - 200, shelf.startX - 20, shelf.startX);
+            shelf.x = newX;
+        }
+        if (draggingLamp) {
+            lamp.x = constrain(mouseX - 175, 0, width - 200);
+            lamp.y = constrain(mouseY - 100, 0, height - 200);
         }
     }
-}
 
-function mouseDragged() {
-    if (draggingShelf) {
-        let newX = constrain(mouseX - 200, shelf.startX - 20, shelf.startX);
-        shelf.x = newX;
+    function mouseReleased() {
+        draggingShelf = false;
+        draggingLamp = false;
     }
-    if (draggingLamp) {
-        lamp.x = constrain(mouseX - 175, 0, width - 200);
-        lamp.y = constrain(mouseY - 100, 0, height - 200);
-    }
-}
 
-function mouseReleased() {
-    draggingShelf = false;
-    draggingLamp = false;
-}
-
-function keyReleased() {
-    if (keyCode === SHIFT) {
-        shiftPressed = false;
+    function keyReleased() {
+        if (keyCode === SHIFT) {
+            shiftPressed = false;
+        }
     }
 }
