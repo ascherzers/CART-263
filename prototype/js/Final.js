@@ -8,6 +8,7 @@ let keyholeImg;
 let keyholeImg2;
 let typeMode = false;
 let shiftPressed = false;
+let mouseSpawned = false;
 let typeButton, exitTypeModeButton, startButton;
 let pixelFont;
 let satchelImg;
@@ -17,20 +18,40 @@ let shelfStartX, shelfStartY;
 let tutorial = true;
 let playerName = "";
 let fadeAmount = 0;
-let fadeInProgress = false;
+let smashEffect;
 let lampOn = false;
+let lampOnEffect;
+let lampOffEffect;
+let fadeActive = false;
+let fadePhase = "out";
 let riddleActive = false;
 let currentRiddle = "";
 let riddleAnswer = "";
 let inventoryButton;
 let showInventory = false;
 let closeInventoryButton;
+let keyEffect;
+let mouseEffect;
 let sledgeImg;
+let deathRoomImg;
+let roomTwoItems = {};
+let keyUsed = false;
+let fadeOutAmount = 0;
+let fadeInAmount = 0;
+let mouseImgX, mouseImgY;
+let mouseTargetX, mouseTargetY;
+let mouseMoving = false;
+let mouseAlreadyThere = false;
 let nameEntered = false;
+let deskMoveEffect;
+let mouseAlreadyCollected = false;
 let selectedInventoryItem = null;
 let smashedShelfImg;
 let sandwichImg;
 let readingBook = false;
+let backgroundMusic;
+let keyholeClogged = false;
+let sandwichMessage = "It's Missing an Ingredient";
 let bookText = `Dear Madam Reller...
 
 Was it a car or a cat I saw?
@@ -76,6 +97,15 @@ function preload() {
     keyholeImg = loadImage('keyhole.png');
     keyholeImg2 = loadImage('keyhole2.png');
     sandwichImg = loadImage('sandwich.png');
+    mouseImg = loadImage('mouse.png');
+    deathRoomImg = loadImage('deathroom.jpeg');
+    keyEffect = loadSound('KEY.mp3');
+    mouseEffect = loadSound('squeek.mp3');
+    lampOnEffect = loadSound('LampOn.mp3');
+    lampOffEffect = loadSound('LampOff.mp3');
+    deskMoveEffect = loadSound('deskMoving.mp3');
+    smashEffect = loadSound('smash.mp3');
+    backgroundMusic = loadSound('musicB.mp3');
 }
 
 function setup() {
@@ -146,14 +176,25 @@ function setup() {
         'book': { x: 620, y: 450, found: false, visible: false, revealed: false, img: bookImg },
         'satchel': { x: 200, y: 380, found: false, visible: true, img: satchelImg },
         'Sledge Hammer': { x: 400, y: 450, found: false, visible: false, img: sledgeImg },
-        'sandwiches': { x: 330, y: 500, found: false, visible: false, img: sandwichImg }
+        'sandwiches': { x: 330, y: 500, found: false, visible: false, img: sandwichImg },
+        'Peanut Butter': { x: 700, y: 50, found: false, visible: false, img: null },
+        'mouse': { x: 400, y: 300, found: false, visible: false, img: null }
     };
 
+    roomTwoItems = {
+        'skull': { x: 400, y: 300, found: false, visible: true, img: loadImage('skull.png') }
+    };
 
     lamp = { x: 470, y: 140, img: lampImg };
 
     keyhole = { x: 200, y: 200, width: 60, height: 60, visible: false };
     keyhole2 = { x: 200, y: 130, width: 60, height: 60, visible: false };
+
+    mouseImgX = width - 80;
+    mouseImgY = height - 80;
+    mouseTargetX = mouseImgX;
+    mouseTargetY = mouseImgY;
+
 
 }
 
@@ -179,10 +220,10 @@ function draw() {
             text(currentRiddle, 120, 250);
             text(userInput, 120, 400);
         } else if (!nameEntered) {
-            text("Good job, that was the game \nLeave a review: \n" + userInput, 120, 300);
+            text("Thanks for playing! \n    Leave a review: \n\n" + userInput, 275, 300);
         } else {
-            text("Script of Typing Stuff", 120, 300);
-            text(userInput, 120, 350);
+            text("Script of Typing Stuff", 275, 300);
+            text(userInput, 275, 350);
 
         }
 
@@ -232,7 +273,6 @@ function draw() {
             fill(255, 255, 100, 150);
             ellipse(lamp.x + 175, lamp.y + 100, 150, 100);
 
-
             if (!items['paper'].found) {
                 stroke('white');
                 strokeWeight(1);
@@ -269,25 +309,89 @@ function draw() {
         textFont(pixelFont);
         text(messages, 20, height - 40);
 
-
-        if (fadeInProgress) {
-            fadeAmount += 0.6;
-            if (fadeAmount >= 255) {
-                fadeAmount = 255;
-            }
-            noStroke();
-            fill(0, fadeAmount);
-            rect(0, 0, width, height);
-        }
         if (keyhole.visible) {
             image(keyholeImg, keyhole.x, keyhole.y, keyhole.width, keyhole.height);
         }
         if (keyhole2.visible) {
             image(keyholeImg2, keyhole2.x, keyhole2.y, keyhole2.width, keyhole2.height);
         }
+
+        if (mouseSpawned) {
+            if (mouseMoving) {
+                // Move mouse position gradually to the target
+                let easing = 0.05;
+                let dx = mouseTargetX - mouseImgX;
+                let dy = mouseTargetY - mouseImgY;
+
+                mouseImgX += dx * easing;
+                mouseImgY += dy * easing;
+
+                // Stop moving if close to target
+                if (abs(dx) < 1 && abs(dy) < 1) {
+                    mouseImgX = mouseTargetX;
+                    mouseImgY = mouseTargetY;
+                    mouseMoving = false;
+                }
+            }
+
+            image(mouseImg, mouseImgX, mouseImgY, 60, 60);
+        }
+
+
+        if (fadeActive) {
+            if (fadePhase === "out") {
+                fadeAmount += 4;
+                if (fadeAmount >= 255) {
+                    fadeAmount = 255;
+
+                    // Switch to next room *after* fading to black
+                    keyUsed = true;
+
+                    fadePhase = "in"; // start fading back in
+                }
+            } else if (fadePhase === "in") {
+                fadeAmount -= 4;
+                if (fadeAmount <= 0) {
+                    fadeAmount = 0;
+                    fadeActive = false; // done fading
+                }
+            }
+
+            // Apply button fading only during fade out
+            if (fadePhase === "out") {
+                let fadeOpacity = map(255 - fadeAmount, 0, 255, 0, 1);
+                typeButton.style("opacity", fadeOpacity);
+                exitTypeModeButton.style("opacity", fadeOpacity);
+                inventoryButton.style("opacity", fadeOpacity);
+                closeInventoryButton.style("opacity", fadeOpacity);
+                startButton.style("opacity", fadeOpacity);
+            }
+
+            noStroke();
+            fill(0, fadeAmount);
+            rect(0, 0, width, height);
+        }
+        else if (keyUsed && !fadeActive) {
+            // Draw the new room while the key is used and the fade transition happens
+            image(deathRoomImg, 0, 0, width, height);
+
+            // Displays items in the new room
+            for (let item in roomTwoItems) {
+                let currentItem = roomTwoItems[item];
+                if (currentItem.visible) {
+                    image(currentItem.img, currentItem.x, currentItem.y, 80, 80);
+                }
+            }
+        }
+
     }
 }
 
+function triggerFade() {
+    fadeAmount = 0;
+    fadeActive = true;
+    fadePhase = "out";
+}
 
 function keyPressed() {
     if (typeMode) {
@@ -300,7 +404,7 @@ function keyPressed() {
                 playerName = userInput;
                 nameEntered = true;
                 userInput = "";
-                messages = "The game isn't over hahaha";
+                messages = "Congrats! You discovered the rest of the game!";
                 typeMode = false;
                 exitTypeModeButton.hide();
                 typeButton.show();
@@ -333,9 +437,6 @@ function keyPressed() {
         } else {
             userInput += shiftPressed ? key.toUpperCase() : key.toLowerCase();
         }
-    } else if (!typeMode && selectedInventoryItem === "book" && keyCode === ENTER) {
-        readingBook = true;
-        messages = "";
     }
 }
 
@@ -344,19 +445,47 @@ function mousePressed() {
         if (showInventory) {
             for (let i = 0; i < inventory.length; i++) {
                 let y = 160 + i * 30;
-                if (mouseX > 560 && mouseX < 760 && mouseY > y - 20 && mouseY < y + 5) {
-                    selectedInventoryItem = inventory[i];
-                    messages = selectedInventoryItem + " selected";
-
-                    if (selectedInventoryItem === "book" && !readingBook) {
-                        readingBook = true;
+                if (mouseX > 560 && mouseX < 760 && mouseY > y - 20 && mouseY < y + 5 && inventory[i] === "sandwiches") {
+                    if (selectedInventoryItem === inventory[i]) {
+                        selectedInventoryItem = null;
                         messages = "";
+                    } else {
+                        selectedInventoryItem = inventory[i];
+                        messages = sandwichMessage;
                     }
 
+                }
+                else if (mouseX > 560 && mouseX < 760 && mouseY > y - 20 && mouseY < y + 5) {
+                    if (selectedInventoryItem === inventory[i]) {
+                        selectedInventoryItem = null;
+                        messages = "";
+                    } else {
+                        selectedInventoryItem = inventory[i];
+                        messages = selectedInventoryItem + " selected";
+
+                        if (selectedInventoryItem === "book" && !readingBook) {
+                            readingBook = true;
+                            messages = "";
+                        }
+                    }
                     return;
                 }
             }
         }
+
+        // If the player clicks in the top right corner (50x50 pixel area)
+        if (mouseX < width - 50 && mouseY < 50) {
+            if (!items['Peanut Butter'].found && inventory.includes("satchel")) {
+                items['Peanut Butter'].found = true;
+                inventory.push('Peanut Butter');
+                messages = "Peanut Butter added to inventory";
+                inventoryButton.show();
+            } else if (!inventory.includes("satchel")) {
+                messages = "Something's up here";
+            }
+            return;
+        }
+
         for (let item in items) {
             let ix = items[item].x;
             let iy = items[item].y;
@@ -377,57 +506,88 @@ function mousePressed() {
                         riddleActive = true;
                         typeMode = true;
                         userInput = "";
-                        currentRiddle = "I speak without a mouth \nAnd hear without ears.\nI have no body,\nBut I come alive with wind.\nWhat am I?";
+                        currentRiddle = "I speak without a mouth \nAnd hear without ears.\nI have no body,\nBut I can copy any voice.\nWhat am I?";
                         riddleAnswer = "echo";
                         messages = "Loose Paper.";
                     }
                 } else if (item === 'book' && items[item].visible) {
-                    items[item].found = true;
-                    inventory.push(item);
-                    messages = "Madam Reller..."; //Palindrome add function to be able to read book's contents in inventory to desipher
-                    inventoryButton.show();
+                    if (inventory.includes("satchel")) {
+                        items[item].found = true;
+                        inventory.push(item);
+                        messages = "Madam Reller..."; //Palindrome add function to be able to read book's contents in inventory to desipher
+                        inventoryButton.show();
+                    } else {
+                        messages = "Why don't you have the satchel yet? It's right over there|";
+                    }
                 } else if (item === 'key' && items[item].visible) {
-                    items[item].found = true;
-                    inventory.push(item);
-                    messages = "KEY"; //Typing key spawns keyhole which leads player to death room
-                    inventoryButton.show();
-                    keyhole.visible = true;
-                    //fadeInProgress = true;
+                    if (inventory.includes("satchel")) {
+                        items[item].found = true;
+                        inventory.push(item);
+                        messages = "KEY"; //Typing key spawns keyhole which leads player to death room
+                        if (!keyEffect.isPlaying()) {
+                            keyEffect.play();
+                        }
+                        inventoryButton.show();
+                        keyhole.visible = true;
+                    } else {
+                        messages = "Come On! Grab the bag|";
+                    }
                 } else if (item === 'satchel' && items[item].visible) {
                     items[item].found = true;
                     inventory.push(item);
-                    messages = "Good job, that was hard!";
+                    messages = "Good job, that was difficult!";
                     inventoryButton.show();
                 } else if (item === 'Sledge Hammer' && items[item].visible) {
                     if (inventory.includes('satchel')) {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "Why is this in the room?";
+                        sandwichMessage = "sandwiches selected";
                     } else {
                         messages = "So heavy";
                     }
                 } else if (item === 'Key+-' && items[item].visible) {
-                    items[item].found = true;
-                    inventory.push(item);
-                    messages = "Key+-";
-                    inventoryButton.show();
+                    if (inventory.includes("satchel")) {
+                        items[item].found = true;
+                        inventory.push(item);
+                        messages = "Key+-";
+                        inventoryButton.show();
+                    } else {
+                        messages = "You've done all this without an inventory? HOW?";
+                    }
                 } else if (item === 'sandwiches' && items[item].visible) {
-                    items[item].found = true;
-                    inventory.push(item);
-                    messages = "It's Missing An Ingredient!!!"
-                    inventoryButton.show();
+                    if (inventory.includes("satchel")) {
+                        items[item].found = true;
+                        inventory.push(item);
+                        messages = "It's Missing an Ingredient"
+                        inventoryButton.show();
+                    } else {
+                        messages = "There's no way you don't have the satchel at this point";
+                    }
                 }
             }
         }
 
-        if (mouseX > lamp.x && mouseX < lamp.x + 300 && mouseY > lamp.y && mouseY < lamp.y + 300) {
+        let clickingInsideInventory = showInventory && mouseX > 550 && mouseX < 780 && mouseY > 100 && mouseY < 500;
+
+        if (!clickingInsideInventory && mouseX > lamp.x && mouseX < lamp.x + 300 && mouseY > lamp.y && mouseY < lamp.y + 300) {
             lampOn = !lampOn;
+            if (!lampOnEffect.isPlaying() && lampOn) {
+                lampOnEffect.play();
+            }
+            if (!lampOffEffect.isPlaying() && !lampOn) {
+                lampOffEffect.play();
+            }
             messages = lampOn ? "ON" : "OFF";
         }
+
 
         if (mouseX > shelf.x && mouseX < shelf.x + 250 && mouseY > shelf.y && mouseY < shelf.y + 250) {
             if (selectedInventoryItem === "Sledge Hammer") {
                 if (selectedInventoryItem === "Sledge Hammer") {
+                    if (!smashEffect.isPlaying()) {
+                        smashEffect.play();
+                    }
                     messages = "Why did you do that?";
                     shelf.img = smashedShelfImg; // Change the image
                     selectedInventoryItem = null;
@@ -437,43 +597,100 @@ function mousePressed() {
                 draggingShelf = true;
             }
         }
-        if (mouseX > lamp.x && mouseX < lamp.x + 300 && mouseY > lamp.y && mouseY < lamp.y + 300) {
+        if (!clickingInsideInventory && mouseX > lamp.x && mouseX < lamp.x + 300 && mouseY > lamp.y && mouseY < lamp.y + 300) {
             draggingLamp = true;
         }
 
-        if (keyhole.visible &&
-            mouseX > keyhole.x && mouseX < keyhole.x + keyhole.width &&
-            mouseY > keyhole.y && mouseY < keyhole.y + keyhole.height) {
+        if (!clickingInsideInventory && keyhole.visible) {
+            if (mouseX > keyhole.x && mouseX < keyhole.x + keyhole.width &&
+                mouseY > keyhole.y && mouseY < keyhole.y + keyhole.height) {
 
-            if (selectedInventoryItem === 'Key+-') {
-                messages = "Not Peanut Butter but it works";
-                fadeInProgress = true;
-                selectedInventoryItem = null;
-            } else {
-                messages = "Try Peanut Butter";//Add peanut butter
-            }
-        } if (keyhole2.visible &&
-            mouseX > keyhole2.x && mouseX < keyhole2.x + keyhole2.width &&
-            mouseY > keyhole2.y && mouseY < keyhole2.y + keyhole2.height) {
+                if (keyholeClogged) {
+                    messages = "Too much peanut butter stuck inside";
+                    return;
+                }
 
-            if (selectedInventoryItem === 'key') {
-                messages = "Hole in the wall accepted that";
-                fadeInProgress = true;
-                selectedInventoryItem = null;
-            } else {
-                messages = "Hole in the wall";
+                if (selectedInventoryItem === 'Key+-') {
+                    messages = "Not Peanut Butter but it works";
+                    fadeActive();
+                    selectedInventoryItem = null;
+                } else if (selectedInventoryItem === 'Peanut Butter') {
+                    messages = "You put Peanut Butter into a keyhole";
+                    keyholeClogged = true;
+                    selectedInventoryItem = null;
+                } else if (selectedInventoryItem) {
+                    if (keyholeClogged) {
+                        messages = selectedInventoryItem + " can't fit with all that Peanut Butter inside";
+                    } else {
+                        messages = "Try Peanut Butter";//Add peanut butter
+                    }
+                }
+            } if (keyhole2.visible &&
+                mouseX > keyhole2.x && mouseX < keyhole2.x + keyhole2.width &&
+                mouseY > keyhole2.y && mouseY < keyhole2.y + keyhole2.height) {
+
+                if (selectedInventoryItem === 'key') {
+                    messages = "Hole in the wall accepted that";
+                    triggerFade();
+                    selectedInventoryItem = null;
+                    keyUsed = true;
+                } else {
+                    messages = "Hole in the wall";
+                }
             }
+
+        }
+
+        if (readingBook) {
+            if (mouseX > 680 && mouseX < 740 && mouseY > 60 && mouseY < 90) {
+                readingBook = false;
+                selectedInventoryItem = null;
+            }
+            return; // Prevent other clicks when reading book
+        }
+
+        // Mouse appears in bottom right if both items are in inventory
+        if (!mouseSpawned &&
+            inventory.includes('Peanut Butter') &&
+            inventory.includes('sandwiches') &&
+            mouseX > width - 100 && mouseY > height - 100) {
+            mouseSpawned = true;
+            if (!mouseEffect.isPlaying()) {
+                mouseEffect.play();
+            }
+            messages = "There's a Little Hungry Feller";
+            inventory.pop('sandwiches');
+            inventory.pop('Peanut Butter');
+        }
+
+        if (mouseSpawned && !mouseAlreadyThere && mouseX > width - 100 && mouseY > height - 100) {
+            mouseSpawned = true;
+            mouseImgX = width - 80;    // Start at bottom-right
+            mouseImgY = height - 80;
+            mouseTargetX = width / 2 - 30;  // Move to center (adjust to align image)
+            mouseTargetY = height / 2 + 100;
+            mouseMoving = true;
+            mouseAlreadyThere = true;
+        }
+
+        if (mouseSpawned &&
+            !mouseMoving &&
+            !mouseAlreadyCollected &&
+            dist(mouseX, mouseY, mouseImgX, mouseImgY) < 50) {
+
+            if (!inventory.includes('sandwiches')) {
+                inventory.push('sandwiches');
+            }
+            if (!inventory.includes('mouse')) {
+                inventory.push('mouse');
+            }
+            mouseAlreadyCollected = true;
+            messages = "He ate your peanut butter but you got your sandwiches back!";
+            inventoryButton.show();
+            mouseSpawned = false;
         }
 
 
-    }
-
-    if (readingBook) {
-        if (mouseX > 680 && mouseX < 740 && mouseY > 60 && mouseY < 90) {
-            readingBook = false;
-            selectedInventoryItem = null;
-        }
-        return; // Prevent other clicks when reading book
     }
 }
 
@@ -481,6 +698,9 @@ function mouseDragged() {
     if (draggingShelf) {
         let newX = constrain(mouseX - 200, shelf.startX - 20, shelf.startX);
         shelf.x = newX;
+        if (!deskMoveEffect.isPlaying()) {
+            deskMoveEffect.play();
+        }
     }
     if (draggingLamp) {
         lamp.x = constrain(mouseX - 175, 0, width - 200);
