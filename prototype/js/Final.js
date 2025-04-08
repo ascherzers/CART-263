@@ -41,7 +41,9 @@ let fadeInAmount = 0;
 let mouseImgX, mouseImgY;
 let mouseTargetX, mouseTargetY;
 let mouseMoving = false;
+let bell;
 let mouseAlreadyThere = false;
+let scaleFactor = 3;
 let nameEntered = false;
 let deskMoveEffect;
 let mouseAlreadyCollected = false;
@@ -103,9 +105,10 @@ function preload() {
     mouseEffect = loadSound('squeek.mp3');
     lampOnEffect = loadSound('LampOn.mp3');
     lampOffEffect = loadSound('LampOff.mp3');
-    deskMoveEffect = loadSound('deskMoving.mp3');
+    deskMoveEffect = loadSound('deskMove.mp3');
     smashEffect = loadSound('smash.mp3');
     backgroundMusic = loadSound('musicB.mp3');
+    bell = loadSound('bell.mp3');
 }
 
 function setup() {
@@ -181,9 +184,11 @@ function setup() {
         'mouse': { x: 400, y: 300, found: false, visible: false, img: null }
     };
 
-    roomTwoItems = {
-        'skull': { x: 400, y: 300, found: false, visible: true, img: loadImage('skull.png') }
-    };
+
+    // roomTwoItems = {
+    //     'skull': { x: 400, y: 300, found: false, visible: true, img: loadImage('skull.png') }
+    // };
+
 
     lamp = { x: 470, y: 140, img: lampImg };
 
@@ -219,6 +224,7 @@ function draw() {
         if (riddleActive) {
             text(currentRiddle, 120, 250);
             text(userInput, 120, 400);
+            text("Close", 620, 140);
         } else if (!nameEntered) {
             text("Thanks for playing! \n    Leave a review: \n\n" + userInput, 275, 300);
         } else {
@@ -337,24 +343,27 @@ function draw() {
             image(mouseImg, mouseImgX, mouseImgY, 60, 60);
         }
 
+        // if (roomTwoItems['skull'].visible) {
+        //     let skull = roomTwoItems['skull'];
+        //     let img = skull.img;
+        //     image(img, skull.x, skull.y, img.width * scaleFactor, img.height * scaleFactor);
+        // }
 
         if (fadeActive) {
             if (fadePhase === "out") {
                 fadeAmount += 4;
                 if (fadeAmount >= 255) {
                     fadeAmount = 255;
-
-                    // Switch to next room *after* fading to black
                     keyUsed = true;
-
-                    fadePhase = "in"; // start fading back in
+                    // fadePhase = "in";
+                    fadeActive = false; //Remove when wanting to put fade in
                 }
-            } else if (fadePhase === "in") {
-                fadeAmount -= 4;
-                if (fadeAmount <= 0) {
-                    fadeAmount = 0;
-                    fadeActive = false; // done fading
-                }
+                // } else if (fadePhase === "in") {
+                //     fadeAmount -= 4;
+                //     if (fadeAmount <= 0) {
+                //         fadeAmount = 0;
+                //         fadeActive = false;
+                //     }
             }
 
             // Apply button fading only during fade out
@@ -404,6 +413,9 @@ function keyPressed() {
                 playerName = userInput;
                 nameEntered = true;
                 userInput = "";
+                // if (!bgMusic.isPlaying()) {
+                //     bgMusic.loop();
+                // }
                 messages = "Congrats! You discovered the rest of the game!";
                 typeMode = false;
                 exitTypeModeButton.hide();
@@ -480,6 +492,9 @@ function mousePressed() {
                 inventory.push('Peanut Butter');
                 messages = "Peanut Butter added to inventory";
                 inventoryButton.show();
+                if (!bell.isPlaying()) {
+                    bell.play();
+                }
             } else if (!inventory.includes("satchel")) {
                 messages = "Something's up here";
             }
@@ -508,7 +523,7 @@ function mousePressed() {
                         userInput = "";
                         currentRiddle = "I speak without a mouth \nAnd hear without ears.\nI have no body,\nBut I can copy any voice.\nWhat am I?";
                         riddleAnswer = "echo";
-                        messages = "Loose Paper.";
+                        messages = "Didn't work";
                     }
                 } else if (item === 'book' && items[item].visible) {
                     if (inventory.includes("satchel")) {
@@ -516,6 +531,9 @@ function mousePressed() {
                         inventory.push(item);
                         messages = "Madam Reller..."; //Palindrome add function to be able to read book's contents in inventory to desipher
                         inventoryButton.show();
+                        if (!bell.isPlaying()) {
+                            bell.play();
+                        }
                     } else {
                         messages = "Why don't you have the satchel yet? It's right over there|";
                     }
@@ -537,12 +555,18 @@ function mousePressed() {
                     inventory.push(item);
                     messages = "Good job, that was difficult!";
                     inventoryButton.show();
+                    if (!bell.isPlaying()) {
+                        bell.play();
+                    }
                 } else if (item === 'Sledge Hammer' && items[item].visible) {
                     if (inventory.includes('satchel')) {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "Why is this in the room?";
                         sandwichMessage = "sandwiches selected";
+                        if (!bell.isPlaying()) {
+                            bell.play();
+                        }
                     } else {
                         messages = "So heavy";
                     }
@@ -552,6 +576,9 @@ function mousePressed() {
                         inventory.push(item);
                         messages = "Key+-";
                         inventoryButton.show();
+                        if (!bell.isPlaying()) {
+                            bell.play();
+                        }
                     } else {
                         messages = "You've done all this without an inventory? HOW?";
                     }
@@ -561,6 +588,9 @@ function mousePressed() {
                         inventory.push(item);
                         messages = "It's Missing an Ingredient"
                         inventoryButton.show();
+                        if (!bell.isPlaying()) {
+                            bell.play();
+                        }
                     } else {
                         messages = "There's no way you don't have the satchel at this point";
                     }
@@ -612,7 +642,7 @@ function mousePressed() {
 
                 if (selectedInventoryItem === 'Key+-') {
                     messages = "Not Peanut Butter but it works";
-                    fadeActive();
+                    triggerFade();
                     selectedInventoryItem = null;
                 } else if (selectedInventoryItem === 'Peanut Butter') {
                     messages = "You put Peanut Butter into a keyhole";
@@ -691,6 +721,15 @@ function mousePressed() {
         }
 
 
+    }
+
+    if (riddleActive) {
+        if (mouseX > 590 && mouseX < 690 && mouseY > 100 && mouseY < 150) {
+            riddleActive = false;
+            selectedInventoryItem = null;
+            typeMode = false;
+        }
+        //return;
     }
 }
 
