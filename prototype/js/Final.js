@@ -25,6 +25,8 @@ let clickOutsideCount = 0;
 let lampOnEffect;
 let justClickedInventoryButton = false;
 let cursorVisible = true;
+let skullImg;
+let showDeathScreen = false;
 let lampOffEffect;
 let fadeActive = false;
 let fadePhase = "out";
@@ -113,6 +115,7 @@ function preload() {
     smashEffect = loadSound('smash.mp3');
     backgroundMusic = loadSound('musicB.mp3');
     bell = loadSound('bell.mp3');
+    skullImg = loadImage('skull.png');
 }
 
 function setup() {
@@ -190,9 +193,10 @@ function setup() {
     };
 
 
-    // roomTwoItems = {
-    //     'skull': { x: 400, y: 300, found: false, visible: true, img: loadImage('skull.png') }
-    // };
+    roomTwoItems = {
+        'skull': { x: 400, y: 300, found: false, visible: true, img: skullImg }
+    };
+
 
 
     lamp = { x: 470, y: 140, img: lampImg };
@@ -389,7 +393,7 @@ function draw() {
                 fadeAmount -= 5;
                 if (fadeAmount <= 0) {
                     fadeAmount = 0;
-                    fadeActive = false; // Done fading
+                    fadeActive = false;
                 }
             }
 
@@ -406,16 +410,29 @@ function draw() {
         }
 
         else if (keyUsed && !fadeActive) {
-            // Draw the new room while the key is used and the fade transition happens
-            image(deathRoomImg, 0, 0, width, height);
 
-            // Displays items in the new room
+            image(deathRoomImg, 0, 0, width, height);
+            fill(255);
+            textSize(32);
+            textFont(pixelFont);
+            textAlign(CENTER);
+            text("The Backroom", width / 2, 50);
+
             for (let item in roomTwoItems) {
                 let currentItem = roomTwoItems[item];
                 if (currentItem.visible) {
                     image(currentItem.img, currentItem.x, currentItem.y, 80, 80);
                 }
             }
+        }
+        if (showDeathScreen) {
+            fill(0, 200);
+            rect(0, 0, width, height);
+            fill(255, 0, 0);
+            textSize(64);
+            textFont(pixelFont);
+            textAlign(CENTER, CENTER);
+            text("YOU DIED", width / 2, height / 2);
         }
         if (showInventory) {
             const insideInventory = mouseIsPressed && mouseX > 550 && mouseX < 780 && mouseY > 100 && mouseY < 500;
@@ -768,6 +785,18 @@ function mousePressed() {
             messages = "He ate your peanut butter but you got your sandwiches back!";
             inventoryButton.show();
             mouseSpawned = false;
+        }
+
+        if (keyUsed && !fadeActive) {
+            let skull = roomTwoItems['skull'];
+            if (
+                mouseX > skull.x &&
+                mouseX < skull.x + 80 &&
+                mouseY > skull.y &&
+                mouseY < skull.y + 80
+            ) {
+                showDeathScreen = true;
+            }
         }
 
     }
