@@ -20,7 +20,11 @@ let playerName = "";
 let fadeAmount = 0;
 let smashEffect;
 let lampOn = false;
+let lastClickOutsideTime = 0;
+let clickOutsideCount = 0;
 let lampOnEffect;
+let justClickedInventoryButton = false;
+let cursorVisible = true;
 let lampOffEffect;
 let fadeActive = false;
 let fadePhase = "out";
@@ -155,6 +159,7 @@ function setup() {
     inventoryButton.style("font-size", "16px");
     inventoryButton.hide();
     inventoryButton.mousePressed(() => {
+        justClickedInventoryButton = true;
         showInventory = true;
         closeInventoryButton.show();
     });
@@ -220,16 +225,19 @@ function draw() {
         fill(0);
         textSize(20);
         textFont(pixelFont);
+        if (frameCount % 30 === 0) {
+            cursorVisible = !cursorVisible;
+        }
 
         if (riddleActive) {
             text(currentRiddle, 120, 250);
-            text(userInput, 120, 400);
+            text(userInput + (cursorVisible ? "_" : ""), 120, 400);
             text("Close", 620, 140);
         } else if (!nameEntered) {
-            text("Thanks for playing! \n    Leave a review: \n\n" + userInput, 275, 300);
+            text("Thanks for playing! \n    Leave a review: \n\n" + userInput + (cursorVisible ? "_" : ""), 275, 300);
         } else {
             text("Script of Typing Stuff", 275, 300);
-            text(userInput, 275, 350);
+            text(userInput + (cursorVisible ? "_" : ""), 275, 350);
 
         }
 
@@ -246,38 +254,63 @@ function draw() {
         fill(255);
         text("Close", 690, 80);
     } else {
-        image(bg, 0, 0, width, height);
+        if (keyUsed) {
+            image(deathRoomImg, 0, 0, width, height);
+        } else if (!keyUsed) {
+            push();
+            let alphaFade = fadeActive && fadePhase === "out" ? 255 - fadeAmount : 255;
+            tint(255, alphaFade); // Applies transparency to all images drawn
 
-        for (let item in items) {
-            if (item === 'Key+-') continue;
-            if (items[item].visible && !items[item].found) {
-                if (item === 'Sledge Hammer') {
-                    image(items[item].img, items[item].x - 40, items[item].y - 40, 160, 160); // Make sledgehammer bigger
-                } else {
-                    image(items[item].img, items[item].x - 20, items[item].y - 20, 80, 80); // Default size for others
+            image(bg, 0, 0, width, height);
+
+            for (let item in items) {
+                if (item === 'Key+-') continue;
+                if (items[item].visible && !items[item].found) {
+                    let img = items[item].img;
+                    if (item === 'Sledge Hammer') {
+                        image(img, items[item].x - 40, items[item].y - 40, 160, 160);
+                    } else {
+                        image(img, items[item].x - 20, items[item].y - 20, 80, 80);
+                    }
                 }
             }
-        }
 
-        if (shelf.img === smashedShelfImg) {
-            image(shelf.img, shelf.x - 20, shelf.y - 5, 350, 315);
-        } else {
-            image(shelf.img, shelf.x, shelf.y, 300, 300);
-        }
-        image(lamp.img, lamp.x, lamp.y, 350, 400);
+            if (shelf.img === smashedShelfImg) {
+                image(shelf.img, shelf.x - 20, shelf.y - 5, 350, 315);
+            } else {
+                image(shelf.img, shelf.x, shelf.y, 300, 300);
+            }
 
+            image(lamp.img, lamp.x, lamp.y, 350, 400);
 
-        if (items['Key+-'].visible && !items['Key+-'].found) {
-            image(items['Key+-'].img, items['Key+-'].x, items['Key+-'].y - 10, 40, 40);
-        }
+            if (items['Key+-'].visible && !items['Key+-'].found) {
+                image(items['Key+-'].img, items['Key+-'].x, items['Key+-'].y - 10, 40, 40);
+            }
 
-        if (items['sandwiches'].visible && !items['sandwiches'].found) {
-            image(items['sandwiches'].img, items['sandwiches'].x, items['sandwiches'].y, 80, 80);
+            if (items['sandwiches'].visible && !items['sandwiches'].found) {
+                image(items['sandwiches'].img, items['sandwiches'].x, items['sandwiches'].y, 80, 80);
+            }
+
+            if (mouseSpawned) {
+                image(mouseImg, mouseImgX, mouseImgY, 60, 60);
+            }
+
+            if (keyhole.visible) {
+                image(keyholeImg, keyhole.x, keyhole.y, keyhole.width, keyhole.height);
+            }
+            if (keyhole2.visible) {
+                image(keyholeImg2, keyhole2.x, keyhole2.y, keyhole2.width, keyhole2.height);
+            }
+
+            pop(); // Restore non-tinted state
         }
 
         if (lampOn) {
+            push();
+            let glowAlpha = fadeActive && fadePhase === "out" ? 150 * ((255 - fadeAmount) / 255) : 150;
             fill(255, 255, 100, 150);
             ellipse(lamp.x + 175, lamp.y + 100, 150, 100);
+            pop();
 
             if (!items['paper'].found) {
                 stroke('white');
@@ -310,17 +343,12 @@ function draw() {
             }
         }
 
-        fill(255);
+        let textAlpha = fadeActive && fadePhase === "out" ? 255 - fadeAmount : 255;
+        fill(255, textAlpha);
         textSize(16);
         textFont(pixelFont);
         text(messages, 20, height - 40);
 
-        if (keyhole.visible) {
-            image(keyholeImg, keyhole.x, keyhole.y, keyhole.width, keyhole.height);
-        }
-        if (keyhole2.visible) {
-            image(keyholeImg2, keyhole2.x, keyhole2.y, keyhole2.width, keyhole2.height);
-        }
 
         if (mouseSpawned) {
             if (mouseMoving) {
@@ -351,35 +379,32 @@ function draw() {
 
         if (fadeActive) {
             if (fadePhase === "out") {
-                fadeAmount += 4;
+                fadeAmount += 5;
                 if (fadeAmount >= 255) {
                     fadeAmount = 255;
+                    fadePhase = "in";
                     keyUsed = true;
-                    // fadePhase = "in";
-                    fadeActive = false; //Remove when wanting to put fade in
                 }
-                // } else if (fadePhase === "in") {
-                //     fadeAmount -= 4;
-                //     if (fadeAmount <= 0) {
-                //         fadeAmount = 0;
-                //         fadeActive = false;
-                //     }
+            } else if (fadePhase === "in") {
+                fadeAmount -= 5;
+                if (fadeAmount <= 0) {
+                    fadeAmount = 0;
+                    fadeActive = false; // Done fading
+                }
             }
 
-            // Apply button fading only during fade out
-            if (fadePhase === "out") {
-                let fadeOpacity = map(255 - fadeAmount, 0, 255, 0, 1);
-                typeButton.style("opacity", fadeOpacity);
-                exitTypeModeButton.style("opacity", fadeOpacity);
-                inventoryButton.style("opacity", fadeOpacity);
-                closeInventoryButton.style("opacity", fadeOpacity);
-                startButton.style("opacity", fadeOpacity);
-            }
+            let fadeOpacity = map(255 - fadeAmount, 0, 255, 0, 1);
+            typeButton.style("opacity", fadeOpacity);
+            exitTypeModeButton.style("opacity", fadeOpacity);
+            inventoryButton.style("opacity", fadeOpacity);
+            closeInventoryButton.style("opacity", fadeOpacity);
+            startButton.style("opacity", fadeOpacity);
 
             noStroke();
             fill(0, fadeAmount);
             rect(0, 0, width, height);
         }
+
         else if (keyUsed && !fadeActive) {
             // Draw the new room while the key is used and the fade transition happens
             image(deathRoomImg, 0, 0, width, height);
@@ -392,6 +417,29 @@ function draw() {
                 }
             }
         }
+        if (showInventory) {
+            const insideInventory = mouseIsPressed && mouseX > 550 && mouseX < 780 && mouseY > 100 && mouseY < 500;
+
+            if (mouseIsPressed && !insideInventory) {
+                if (millis() - lastClickOutsideTime < 400) {
+                    clickOutsideCount++;
+                } else {
+                    clickOutsideCount = 1;
+                }
+                lastClickOutsideTime = millis();
+
+                if (clickOutsideCount >= 2) {
+                    showInventory = false;
+                    closeInventoryButton.hide();
+                    selectedInventoryItem = null;
+                    clickOutsideCount = 0;
+                }
+            }
+        }
+
+        // Reset the flag each frame
+        justClickedInventoryButton = false;
+
 
     }
 }
@@ -400,6 +448,9 @@ function triggerFade() {
     fadeAmount = 0;
     fadeActive = true;
     fadePhase = "out";
+    // 👇 Close inventory when fading starts
+    showInventory = false;
+    closeInventoryButton.hide();
 }
 
 function keyPressed() {
@@ -454,6 +505,8 @@ function keyPressed() {
 
 function mousePressed() {
     if (!typeMode) {
+        let clickingInsideInventory = showInventory && mouseX > 550 && mouseX < 780 && mouseY > 100 && mouseY < 500;
+        let clickedInventoryButton = mouseX > 1010 && mouseX < 1010 + 100 && mouseY > 640 && mouseY < 640 + 20;
         if (showInventory) {
             for (let i = 0; i < inventory.length; i++) {
                 let y = 160 + i * 30;
@@ -598,8 +651,6 @@ function mousePressed() {
             }
         }
 
-        let clickingInsideInventory = showInventory && mouseX > 550 && mouseX < 780 && mouseY > 100 && mouseY < 500;
-
         if (!clickingInsideInventory && mouseX > lamp.x && mouseX < lamp.x + 300 && mouseY > lamp.y && mouseY < lamp.y + 300) {
             lampOn = !lampOn;
             if (!lampOnEffect.isPlaying() && lampOn) {
@@ -663,7 +714,6 @@ function mousePressed() {
                     messages = "Hole in the wall accepted that";
                     triggerFade();
                     selectedInventoryItem = null;
-                    keyUsed = true;
                 } else {
                     messages = "Hole in the wall";
                 }
@@ -720,7 +770,6 @@ function mousePressed() {
             mouseSpawned = false;
         }
 
-
     }
 
     if (riddleActive) {
@@ -729,8 +778,8 @@ function mousePressed() {
             selectedInventoryItem = null;
             typeMode = false;
         }
-        //return;
     }
+
 }
 
 function mouseDragged() {
