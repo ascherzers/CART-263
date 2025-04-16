@@ -18,9 +18,15 @@ let shelfStartX, shelfStartY;
 let tutorial = true;
 let playerName = "";
 let fadeAmount = 0;
+let clockImages = [];
+let clockProgress = 0;
+let fadeTarget = "";
 let smashEffect;
 let lampOn = false;
 let lastClickOutsideTime = 0;
+let showJumpscare = false;
+let jumpscareSize = 50;
+let jumpscareOpacity = 255;
 let clickOutsideCount = 0;
 let lampOnEffect;
 let justClickedInventoryButton = false;
@@ -28,6 +34,7 @@ let cursorVisible = true;
 let skullImg;
 let showDeathScreen = false;
 let lampOffEffect;
+let thirdRoomImg;
 let fadeActive = false;
 let fadePhase = "out";
 let riddleActive = false;
@@ -54,6 +61,7 @@ let nameEntered = false;
 let deskMoveEffect;
 let mouseAlreadyCollected = false;
 let selectedInventoryItem = null;
+let altKeyUsed = false;
 let smashedShelfImg;
 let sandwichImg;
 let readingBook = false;
@@ -116,6 +124,11 @@ function preload() {
     backgroundMusic = loadSound('musicB.mp3');
     bell = loadSound('bell.mp3');
     skullImg = loadImage('skull.png');
+    thirdRoomImg = loadImage('3room.png');
+    jumpscareImg = loadImage('jumpscare.png');
+    for (let i = 0; i < 6; i++) {
+        clockImages.push(loadImage(`clock${i}.png`));
+    }
 }
 
 function setup() {
@@ -260,10 +273,10 @@ function draw() {
     } else {
         if (keyUsed) {
             image(deathRoomImg, 0, 0, width, height);
-        } else if (!keyUsed) {
+        } else if (!keyUsed && !altKeyUsed) {
             push();
             let alphaFade = fadeActive && fadePhase === "out" ? 255 - fadeAmount : 255;
-            tint(255, alphaFade); // Applies transparency to all images drawn
+            tint(255, alphaFade);
 
             image(bg, 0, 0, width, height);
 
@@ -305,6 +318,8 @@ function draw() {
             if (keyhole2.visible) {
                 image(keyholeImg2, keyhole2.x, keyhole2.y, keyhole2.width, keyhole2.height);
             }
+
+            image(clockImages[clockProgress], 540, 100, 80, 80); // top right corner
 
             pop(); // Restore non-tinted state
         }
@@ -354,6 +369,7 @@ function draw() {
         text(messages, 20, height - 40);
 
 
+
         if (mouseSpawned) {
             if (mouseMoving) {
                 // Move mouse position gradually to the target
@@ -375,11 +391,6 @@ function draw() {
             image(mouseImg, mouseImgX, mouseImgY, 60, 60);
         }
 
-        // if (roomTwoItems['skull'].visible) {
-        //     let skull = roomTwoItems['skull'];
-        //     let img = skull.img;
-        //     image(img, skull.x, skull.y, img.width * scaleFactor, img.height * scaleFactor);
-        // }
 
         if (fadeActive) {
             if (fadePhase === "out") {
@@ -387,13 +398,15 @@ function draw() {
                 if (fadeAmount >= 255) {
                     fadeAmount = 255;
                     fadePhase = "in";
-                    keyUsed = true;
                 }
             } else if (fadePhase === "in") {
                 fadeAmount -= 5;
                 if (fadeAmount <= 0) {
                     fadeAmount = 0;
                     fadeActive = false;
+                    if (fadeTarget === "backroom") keyUsed = true;
+                    if (fadeTarget === "thirdroom") altKeyUsed = true;
+                    fadeTarget = "";
                 }
             }
 
@@ -409,19 +422,45 @@ function draw() {
             rect(0, 0, width, height);
         }
 
-        else if (keyUsed && !fadeActive) {
+        else if ((keyUsed || altKeyUsed) && !fadeActive) {
+            if (altKeyUsed) {
+                image(thirdRoomImg, 0, 0, width, height);
+                fill(255);
+                textSize(16);
+                textFont(pixelFont);
+                text("Is this the right way?", 20, height - 40);
 
-            image(deathRoomImg, 0, 0, width, height);
-            fill(255);
-            textSize(32);
-            textFont(pixelFont);
-            textAlign(CENTER);
-            text("The Backroom", width / 2, 50);
+                if (showJumpscare) {
+                    push();
+                    tint(255, jumpscareOpacity);
+                    imageMode(CENTER);
+                    image(jumpscareImg, width / 2, height / 2, jumpscareSize, jumpscareSize);
+                    imageMode(CORNER);
+                    jumpscareSize += 40;
+                    if (jumpscareSize > width * 1.5) {
+                        jumpscareOpacity -= 20;
+                    }
+                    if (jumpscareOpacity <= 0) {
+                        showJumpscare = false;
+                        jumpscareSize = 50;
+                        jumpscareOpacity = 255;
+                    }
+                    pop();
+                }
+            } else if (keyUsed) {
+                image(deathRoomImg, 0, 0, width, height);
+                fill(255);
+                textSize(32);
+                textFont(pixelFont);
+                textAlign(CENTER);
+                text("The Backroom", width / 2, 170);
 
-            for (let item in roomTwoItems) {
-                let currentItem = roomTwoItems[item];
-                if (currentItem.visible) {
-                    image(currentItem.img, currentItem.x, currentItem.y, 80, 80);
+                for (let item in roomTwoItems) {
+                    let currentItem = roomTwoItems[item];
+                    if (currentItem.visible) {
+                        image(currentItem.img, currentItem.x - 50, currentItem.y - 60, 110, 125);
+
+                    }
                 }
             }
         }
@@ -454,7 +493,6 @@ function draw() {
             }
         }
 
-        // Reset the flag each frame
         justClickedInventoryButton = false;
 
 
@@ -465,10 +503,21 @@ function triggerFade() {
     fadeAmount = 0;
     fadeActive = true;
     fadePhase = "out";
-    // 👇 Close inventory when fading starts
+    fadeTarget = "backroom";
     showInventory = false;
     closeInventoryButton.hide();
 }
+
+function triggerAltFade() {
+    fadeAmount = 0;
+    fadeActive = true;
+    fadePhase = "out";
+    fadeTarget = "thirdroom";
+    altKeyUsed = true;
+    showInventory = false;
+    closeInventoryButton.hide();
+}
+
 
 function keyPressed() {
     if (typeMode) {
@@ -612,6 +661,7 @@ function mousePressed() {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "KEY"; //Typing key spawns keyhole which leads player to death room
+                        clockProgress = max(clockProgress, 1);
                         if (!keyEffect.isPlaying()) {
                             keyEffect.play();
                         }
@@ -633,6 +683,7 @@ function mousePressed() {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "Why is this in the room?";
+                        clockProgress = max(clockProgress, 2);
                         sandwichMessage = "sandwiches selected";
                         if (!bell.isPlaying()) {
                             bell.play();
@@ -645,6 +696,7 @@ function mousePressed() {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "Key+-";
+                        clockProgress = max(clockProgress, 3);
                         inventoryButton.show();
                         if (!bell.isPlaying()) {
                             bell.play();
@@ -657,6 +709,7 @@ function mousePressed() {
                         items[item].found = true;
                         inventory.push(item);
                         messages = "It's Missing an Ingredient"
+                        clockProgress = max(clockProgress, 4);
                         inventoryButton.show();
                         if (!bell.isPlaying()) {
                             bell.play();
@@ -710,7 +763,7 @@ function mousePressed() {
 
                 if (selectedInventoryItem === 'Key+-') {
                     messages = "Not Peanut Butter but it works";
-                    triggerFade();
+                    triggerAltFade();
                     selectedInventoryItem = null;
                 } else if (selectedInventoryItem === 'Peanut Butter') {
                     messages = "You put Peanut Butter into a keyhole";
@@ -789,13 +842,28 @@ function mousePressed() {
 
         if (keyUsed && !fadeActive) {
             let skull = roomTwoItems['skull'];
+            let skullX = skull.x - 50;
+            let skullY = skull.y - 60;
+            let skullW = 110;
+            let skullH = 125;
             if (
-                mouseX > skull.x &&
-                mouseX < skull.x + 80 &&
-                mouseY > skull.y &&
-                mouseY < skull.y + 80
+                mouseX > skullX &&
+                mouseX < skullX + skullW &&
+                mouseY > skullY &&
+                mouseY < skullY + skullH
             ) {
                 showDeathScreen = true;
+            }
+        }
+
+        if (altKeyUsed && !fadeActive) {
+            if (
+                mouseX > width / 2 - 50 && mouseX < width / 2 + 50 &&
+                mouseY > height / 2 - 75 && mouseY < height / 2 + 75
+            ) {
+                showJumpscare = true;
+                jumpscareSize = 50;
+                jumpscareOpacity = 255;
             }
         }
 
