@@ -1,12 +1,13 @@
-#Prototype Final CART 263
+#Final CART 263
 
 Aran Scherzer
 
-[View this project online] https://ascherzers.github.io/cart263/final/index.html
+[View this project online] https://ascherzers.github.io/prototype/index.html
 
 ## Description
 
-A blank background that experiments with the fading mechanics I will be using to transition between rooms, as it fades to black. Three hidden shapes are placed in the frame and when clicked on will reveal themselves and be interactable, each one having it's own feature. The sqaure being able to be dragged around, the triangle can be rotated when clicked on, and the circle can change colour when cicked on.
+“EEG” is a surreal escape room game where players uncover secrets hidden in an ordinary-looking space. Through curious interactions, cryptic riddles, and strange objects, a seemingly normal room slowly reveals layers of mystery. Solve puzzles, collect items, and explore deeper into alternate realities—but beware, not everything wants to be found.
+
 
 ## Credits
 
